@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Splitter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #F4E4C1 0%, #87CEEB 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #5A8FB5;
+            margin-bottom: 30px;
+            font-weight: 300;
+            font-size: 2.5em;
+        }
+
+        .text-box-container {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .clear-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #87CEEB;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .clear-btn:hover {
+            background: #5A8FB5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 20px;
+            padding-top: 50px;
+            border: none;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #5A8FB5;
+            font-size: 16px;
+            resize: vertical;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .clips-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .clip {
+            position: relative;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            padding-top: 60px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .clip:hover {
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .clip-header {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clip-number {
+            color: #C9A86A;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .copy-btn {
+            background: #87CEEB;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .copy-btn:hover {
+            background: #5A8FB5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .copy-btn.copied {
+            background: #C9A86A;
+        }
+
+        .clip-text {
+            color: #5A8FB5;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 15px;
+        }
+
+        .char-count {
+            color: #C9A86A;
+            font-size: 12px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Text Splitter</h1>
+        
+        <div class="text-box-container">
+            <button class="clear-btn" onclick="clearTextBox()">Clear</button>
+            <textarea id="mainText" placeholder="Paste your text here..."></textarea>
+        </div>
+
+        <div class="clips-container" id="clipsContainer"></div>
+    </div>
+
+    <script>
+        const textarea = document.getElementById('mainText');
+        const clipsContainer = document.getElementById('clipsContainer');
+        const MAX_CHARS = 4096;
+
+        textarea.addEventListener('input', handleTextChange);
+        textarea.addEventListener('paste', handlePaste);
+
+        function handlePaste(e) {
+            if (textarea.value.trim() === '') {
+                clipsContainer.innerHTML = '';
+            }
+        }
+
+        function handleTextChange() {
+            const text = textarea.value;
+            if (text.trim() === '') {
+                clipsContainer.innerHTML = '';
+                return;
+            }
+            splitAndDisplay(text);
+        }
+
+        function splitText(text) {
+            const chunks = [];
+            let remaining = text;
+
+            while (remaining.length > 0) {
+                if (remaining.length <= MAX_CHARS) {
+                    chunks.push(remaining);
+                    break;
+                }
+
+                let splitPoint = MAX_CHARS;
+                const chunk = remaining.substring(0, MAX_CHARS);
+
+                // Try to find the last paragraph break
+                const lastParagraph = chunk.lastIndexOf('\n\n');
+                if (lastParagraph > MAX_CHARS * 0.7) {
+                    splitPoint = lastParagraph + 2;
+                } else {
+                    // Try to find the last single newline
+                    const lastNewline = chunk.lastIndexOf('\n');
+                    if (lastNewline > MAX_CHARS * 0.7) {
+                        splitPoint = lastNewline + 1;
+                    } else {
+                        // Try to find the last sentence end
+                        const sentenceEnds = ['. ', '! ', '? ', '.\n', '!\n', '?\n'];
+                        let lastSentence = -1;
+                        for (let end of sentenceEnds) {
+                            const pos = chunk.lastIndexOf(end);
+                            if (pos > lastSentence) {
+                                lastSentence = pos;
+                            }
+                        }
+                        if (lastSentence > MAX_CHARS * 0.7) {
+                            splitPoint = lastSentence + 2;
+                        } else {
+                            // Try to find the last space
+                            const lastSpace = chunk.lastIndexOf(' ');
+                            if (lastSpace > MAX_CHARS * 0.7) {
+                                splitPoint = lastSpace + 1;
+                            }
+                        }
+                    }
+                }
+
+                chunks.push(remaining.substring(0, splitPoint));
+                remaining = remaining.substring(splitPoint);
+            }
+
+            return chunks;
+        }
+
+        function splitAndDisplay(text) {
+            const chunks = splitText(text);
+            clipsContainer.innerHTML = '';
+
+            chunks.forEach((chunk, index) => {
+                const clipDiv = document.createElement('div');
+                clipDiv.className = 'clip';
+
+                const clipHeader = document.createElement('div');
+                clipHeader.className = 'clip-header';
+
+                const leftInfo = document.createElement('div');
+                const clipNumber = document.createElement('div');
+                clipNumber.className = 'clip-number';
+                clipNumber.textContent = `Clip ${index + 1} of ${chunks.length}`;
+                
+                const charCount = document.createElement('div');
+                charCount.className = 'char-count';
+                charCount.textContent = `${chunk.length} characters`;
+                
+                leftInfo.appendChild(clipNumber);
+                leftInfo.appendChild(charCount);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.onclick = () => copyToClipboard(copyBtn, chunk);
+
+                clipHeader.appendChild(leftInfo);
+                clipHeader.appendChild(copyBtn);
+
+                const clipText = document.createElement('div');
+                clipText.className = 'clip-text';
+                clipText.textContent = chunk;
+
+                clipDiv.appendChild(clipHeader);
+                clipDiv.appendChild(clipText);
+
+                clipsContainer.appendChild(clipDiv);
+            });
+        }
+
+        async function copyToClipboard(button, text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        }
+
+        function clearTextBox() {
+            textarea.value = '';
+            clipsContainer.innerHTML = '';
+        }
+    </script>
+</body>
+</html>
